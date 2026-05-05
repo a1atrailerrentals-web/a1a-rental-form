@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A1A Trailer Rentals – Rental Agreement</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f4f4f0;font-family:'DM Sans',sans-serif}
+.ra-wrap{max-width:680px;margin:2rem auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08);padding-bottom:3rem}
+.ra-hero{background:#0a1628;padding:1.5rem 2rem;display:flex;align-items:center;gap:1.25rem}
+.ra-hero img{width:80px;height:70px;object-fit:contain;border-radius:6px}
+.ra-hero-divider{width:1px;height:52px;background:rgba(255,255,255,0.2);flex-shrink:0}
+.ra-hero-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:#e03030;line-height:1.1}
+.ra-hero-sub{font-size:13px;color:rgba(255,255,255,0.5);margin-top:3px}
+.ra-hero-phone{font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px}
+.ra-body{padding:1.5rem 2rem}
+.ra-section{margin-bottom:1.75rem}
+.section-label{font-size:11px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:0.5px solid #ddd}
+.ra-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ra-field{display:flex;flex-direction:column;gap:4px}
+.ra-field label{font-size:12px;color:#666;font-weight:500}
+.ra-field input{height:38px;border:0.5px solid #ccc;border-radius:8px;padding:0 10px;font-size:14px;font-family:'DM Sans',sans-serif;background:#fff;color:#111;width:100%}
+.ra-field input:focus{outline:none;border-color:#e03030;box-shadow:0 0 0 2px rgba(224,48,48,0.12)}
+.trailer-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.t-card{border:0.5px solid #ccc;border-radius:12px;padding:14px;cursor:pointer;transition:border-color 0.15s,background 0.15s;user-select:none}
+.t-card:hover{border-color:#e03030}
+.t-card.selected{border-color:#e03030;background:rgba(224,48,48,0.05)}
+.t-icon{font-size:22px;margin-bottom:6px}
+.t-name{font-size:13px;font-weight:500;color:#111;margin-bottom:2px}
+.t-sub{font-size:11px;color:#888}
+.cal-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1rem}
+.cal-box{border:0.5px solid #ccc;border-radius:12px;overflow:hidden}
+.cal-head{background:#f5f5f5;padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
+.cal-title-txt{font-size:13px;font-weight:500;color:#111}
+.cal-nav{background:none;border:none;cursor:pointer;font-size:16px;color:#888;padding:2px 6px;border-radius:4px}
+.cal-nav:hover{background:#eee;color:#111}
+.cal-grid{padding:8px}
+.cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
+.cal-day-label{font-size:10px;color:#888;text-align:center;padding:2px 0}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-day{font-size:12px;text-align:center;padding:5px 2px;border-radius:6px;cursor:pointer;color:#111;border:none;background:none;width:100%}
+.cal-day:hover:not(.disabled):not(.empty){background:rgba(224,48,48,0.1)}
+.cal-day.selected{background:#e03030;color:#fff;font-weight:500}
+.cal-day.in-range{background:rgba(224,48,48,0.1)}
+.cal-day.disabled{color:#bbb;cursor:not-allowed}
+.cal-day.empty{cursor:default}
+.cal-day.today{font-weight:500;text-decoration:underline;text-decoration-color:#888}
+.date-label{font-size:11px;color:#888;margin-bottom:4px}
+.date-value{font-size:14px;font-weight:500;color:#111;min-height:20px}
+.pricing-card{border:0.5px solid #ccc;border-radius:12px;overflow:hidden}
+.pricing-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-bottom:0.5px solid #eee;font-size:13px;color:#555}
+.pricing-row:last-child{border-bottom:none}
+.pricing-row.total{font-weight:500;background:#e03030;color:#fff;padding:10px 12px}
+.pricing-row.total span{color:#fff}
+.no-selection{font-size:13px;color:#888;padding:8px 0;text-align:center}
+.rates-toggle{font-size:12px;color:#888;cursor:pointer;text-decoration:underline;margin-top:8px;display:inline-block}
+.rates-table{margin-top:8px;width:100%;border-collapse:collapse}
+.rates-table td{font-size:12px;padding:4px 8px;border-bottom:0.5px solid #eee;color:#666}
+.rates-table td:last-child{text-align:right;font-weight:500;color:#111}
+.rates-table tr:last-child td{border-bottom:none}
+.ra-upload-box{border:1px dashed #ccc;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color 0.15s}
+.ra-upload-box:hover{border-color:#e03030}
+.ra-upload-icon{width:32px;height:32px;background:#f5f5f5;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ra-upload-text{font-size:13px;color:#666}
+.ra-upload-text strong{color:#111;font-weight:500;display:block;font-size:13px}
+.ra-upload-input{display:none}
+.ra-upload-done{font-size:12px;color:#27500a;margin-top:3px;display:none}
+.ra-terms-box{border:0.5px solid #ccc;border-radius:8px;height:200px;overflow-y:auto;padding:14px 16px;font-size:12.5px;color:#555;line-height:1.7;background:#fafafa}
+.ra-terms-box h4{font-size:12px;font-weight:500;color:#111;margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.5px}
+.ra-terms-box h4:first-child{margin-top:0}
+.ra-sig-area{border:0.5px solid #ccc;border-radius:8px;background:#fafafa;position:relative;overflow:hidden}
+.ra-sig-canvas{display:block;width:100%;height:130px;cursor:crosshair;touch-action:none}
+.ra-sig-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;color:#aaa;pointer-events:none}
+.ra-sig-clear{position:absolute;top:8px;right:10px;font-size:11px;color:#888;cursor:pointer;background:none;border:none;padding:2px 6px}
+.ra-sig-clear:hover{color:#333}
+.ra-checkbox-row{display:flex;align-items:flex-start;gap:10px;margin-top:1rem}
+.ra-checkbox-row input[type=checkbox]{margin-top:2px;width:16px;height:16px;accent-color:#e03030;flex-shrink:0}
+.ra-checkbox-row label{font-size:13px;color:#555;line-height:1.5}
+.ra-submit{width:100%;height:48px;background:#e03030;color:#fff;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;cursor:pointer;margin-top:1.25rem;transition:opacity 0.15s}
+.ra-submit:hover{opacity:0.88}
+.ra-submit:disabled{opacity:0.35;cursor:not-allowed}
+.ra-status{display:none;margin-top:1rem;padding:14px 16px;border-radius:8px;font-size:14px;line-height:1.5}
+.ra-status.success{background:#eaf3de;color:#27500a;border:0.5px solid #97c459;display:block}
+.ra-status.error{background:#fcebeb;color:#791f1f;border:0.5px solid #f09595;display:block}
+.ra-status.loading{background:#f5f5f5;color:#666;border:0.5px solid #ddd;display:block}
+@media(max-width:520px){.ra-grid-2,.trailer-cards,.cal-row{grid-template-columns:1fr}.ra-body{padding:1rem}}
+</style>
+</head>
+<body>
+
+<div class="ra-wrap">
+  <div class="ra-hero">
+    <img src="https://static.wixstatic.com/media/ffe6a5_83730bb7a65c4048a0b2faa31b20ea94~mv2.jpg/v1/fill/w_181,h_156,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/ffe6a5_83730bb7a65c4048a0b2faa31b20ea94~mv2.jpg" alt="A1A Trailer Rentals Logo">
+    <div class="ra-hero-divider"></div>
+    <div>
+      <div class="ra-hero-title">Rental Agreement</div>
+      <div class="ra-hero-sub">Complete all fields before signing</div>
+      <div class="ra-hero-phone">904-417-8106 &nbsp;|&nbsp; St. Augustine, FL</div>
+    </div>
+  </div>
+
+  <div class="ra-body">
+
+    <div class="ra-section">
+      <div class="section-label">Renter Information</div>
+      <div class="ra-grid-2">
+        <div class="ra-field"><label>Full Name *</label><input type="text" id="f-name" placeholder="Jane Smith"></div>
+        <div class="ra-field"><label>Phone *</label><input type="tel" id="f-phone" placeholder="(904) 555-0100"></div>
+        <div class="ra-field"><label>Email *</label><input type="email" id="f-email" placeholder="jane@example.com"></div>
+        <div class="ra-field"><label>Street Address *</label><input type="text" id="f-address" placeholder="123 Main St"></div>
+        <div class="ra-field"><label>City *</label><input type="text" id="f-city" placeholder="St. Augustine"></div>
+        <div class="ra-field"><label>State *</label><input type="text" id="f-state" placeholder="FL" maxlength="2"></div>
+        <div class="ra-field"><label>ZIP *</label><input type="text" id="f-zip" placeholder="32080" maxlength="10"></div>
+      </div>
+    </div>
+
+    <div class="ra-section">
+      <div class="section-label">Select Trailer</div>
+      <div class="trailer-cards">
+        <div class="t-card" onclick="selectTrailer('7x16',this)"><div class="t-icon">🚗</div><div class="t-name">7x16 Car Hauler</div><div class="t-sub">From $60</div></div>
+        <div class="t-card" onclick="selectTrailer('7x20',this)"><div class="t-icon">🚙</div><div class="t-name">7x20 Car Hauler</div><div class="t-sub">From $70</div></div>
+        <div class="t-card" onclick="selectTrailer('dump',this)"><div class="t-icon">🚛</div><div class="t-name">14' Dump Trailer</div><div class="t-sub">From $130</div></div>
+      </div>
+      <div id="cal-section" style="display:none;margin-top:1.25rem">
+        <div class="cal-row">
+          <div><div class="date-label">Start date</div><div class="date-value" id="start-display">—</div></div>
+          <div><div class="date-label">Return date</div><div class="date-value" id="end-display">—</div></div>
+        </div>
+        <div class="cal-row">
+          <div class="cal-box">
+            <div class="cal-head">
+              <button class="cal-nav" onclick="prevMonth()">&#8592;</button>
+              <span class="cal-title-txt" id="cal-title"></span>
+              <button class="cal-nav" onclick="nextMonth()">&#8594;</button>
+            </div>
+            <div class="cal-grid">
+              <div class="cal-days-header">
+                <div class="cal-day-label">Su</div><div class="cal-day-label">Mo</div><div class="cal-day-label">Tu</div><div class="cal-day-label">We</div><div class="cal-day-label">Th</div><div class="cal-day-label">Fr</div><div class="cal-day-label">Sa</div>
+              </div>
+              <div class="cal-days" id="cal-days"></div>
+            </div>
+          </div>
+          <div>
+            <div id="pick-msg" class="no-selection">Pick a start date to see pricing</div>
+            <div id="pricing-card" class="pricing-card" style="display:none"></div>
+            <span class="rates-toggle" id="rates-toggle" style="display:none" onclick="toggleRates()">View all rates ▾</span>
+            <div id="rates-table-wrap" style="display:none"><table class="rates-table" id="rates-table"></table></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ra-section">
+      <div class="section-label">Required Documents</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="ra-upload-box" onclick="document.getElementById('ul-license').click()">
+          <div class="ra-upload-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="#666" stroke-width="1.2"/><path d="M5 7h6M5 9.5h4" stroke="#666" stroke-width="1.2" stroke-linecap="round"/></svg></div>
+          <div class="ra-upload-text"><strong>Valid Driver's License *</strong>Front of license — photo or PDF up to 15MB</div>
+          <input type="file" id="ul-license" class="ra-upload-input" accept="image/*,application/pdf" onchange="markUpload(this,'done-license')">
+        </div>
+        <div id="done-license" class="ra-upload-done">✓ License uploaded</div>
+        <div class="ra-upload-box" onclick="document.getElementById('ul-reg').click()">
+          <div class="ra-upload-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="#666" stroke-width="1.2"/><path d="M5 7h6M5 9.5h4" stroke="#666" stroke-width="1.2" stroke-linecap="round"/></svg></div>
+          <div class="ra-upload-text"><strong>Towing Vehicle Registration *</strong>Current registration document</div>
+          <input type="file" id="ul-reg" class="ra-upload-input" accept="image/*,application/pdf" onchange="markUpload(this,'done-reg')">
+        </div>
+        <div id="done-reg" class="ra-upload-done">✓ Registration uploaded</div>
+        <div class="ra-upload-box" onclick="document.getElementById('ul-ins').click()">
+          <div class="ra-upload-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="#666" stroke-width="1.2"/><path d="M5 7h6M5 9.5h4" stroke="#666" stroke-width="1.2" stroke-linecap="round"/></svg></div>
+          <div class="ra-upload-text"><strong>Towing Vehicle Insurance *</strong>Current proof of insurance or declaration page</div>
+          <input type="file" id="ul-ins" class="ra-upload-input" accept="image/*,application/pdf" onchange="markUpload(this,'done-ins')">
+        </div>
+        <div id="done-ins" class="ra-upload-done">✓ Insurance uploaded</div>
+      </div>
+    </div>
+
+    <div class="ra-section">
+      <div class="section-label">Terms & Conditions</div>
+      <div class="ra-terms-box" id="terms-box" onscroll="checkScroll()">
+        <h4>1. Eligibility & Driver Requirements</h4>
+        Renter must be at least 21 years of age, possess a valid driver's license, and provide current proof of insurance for the towing vehicle. Only the named Renter, or persons specifically authorized by A1A Trailer Rentals in writing, may tow or operate the trailer.
+        <h4>2. Tow Vehicle & Equipment Requirements</h4>
+        Renter is solely responsible for ensuring their towing vehicle is rated for the loaded weight of the trailer (GVWR) and is equipped with a properly rated hitch, ball, safety chains, electrical connection, and brake controller where applicable.
+        <h4>3. Condition & Pre-Rental Inspection</h4>
+        Renter acknowledges they have personally inspected the trailer at pickup, that it is in good working order, and that any pre-existing damage has been documented on the inspection checklist.
+        <h4>4. Permitted & Prohibited Use</h4>
+        The trailer may be used only for lawful purposes within the continental United States. Prohibited uses include off-road or racing use, hazardous materials, livestock or human passengers, subletting, or operation while impaired.
+        <h4>5. Insurance, Risk of Loss & Indemnification</h4>
+        Renter's personal auto liability and physical damage insurance is the primary coverage during the rental period. Renter agrees to indemnify and hold harmless A1A Trailer Rentals from all claims arising from Renter's use of the trailer.
+        <h4>6. Damage, Loss & Theft</h4>
+        Renter is responsible for the full cost of repair for any damage occurring during the rental period, regardless of fault. Theft or total loss requires payment of full fair-market replacement value plus loss-of-use damages.
+        <h4>7. Security Deposit</h4>
+        A refundable security deposit of $100 is collected at the start of the rental and returned within 7 business days after the trailer is returned in equivalent condition.
+        <h4>8. Returns, Late Fees & Cleaning</h4>
+        Late returns are subject to a fee of $25 per hour. Trailers returned uncleaned are subject to a $50 cleaning fee. Failure to return within 24 hours without approval may be reported to law enforcement.
+        <h4>9. Cancellation Policy</h4>
+        Cancellations more than 24 hours before start: full refund. Within 24 hours: $25 fee. No-shows forfeit the entire rental fee.
+        <h4>10. Mechanical Issues During Rental</h4>
+        A1A Trailer Rentals' sole liability for trailer failure through no fault of Renter is limited to a prorated refund for unused time and reasonable recovery assistance.
+        <h4>11. Assumption of Risk</h4>
+        Towing a trailer involves inherent risks. Renter acknowledges and voluntarily assumes these risks and waives claims against A1A Trailer Rentals for injury or damage arising from such inherent risks.
+        <h4>12. Governing Law & Venue</h4>
+        This Agreement is governed by the laws of the State of Florida. Disputes shall be brought in state or federal courts in St. Johns County, Florida.
+        <h4>13. Severability & Entire Agreement</h4>
+        If any provision is found unenforceable, the remaining provisions remain in full force and effect. This Agreement constitutes the entire agreement between the parties.
+        <h4>14. Acknowledgement</h4>
+        By signing, Renter confirms they have read and understood all terms, accept full responsibility for the trailer during the rental period, and have authority to bind themselves or any business entity.
+      </div>
+      <div style="font-size:11px;color:#888;margin-top:5px;text-align:right" id="scroll-hint">Scroll to read all sections before agreeing</div>
+    </div>
+
+    <div class="ra-section">
+      <div class="section-label">Signature</div>
+      <div class="ra-sig-area">
+        <canvas class="ra-sig-canvas" id="sig-canvas"></canvas>
+        <div class="ra-sig-hint" id="sig-hint">Sign here with your finger or mouse</div>
+        <button class="ra-sig-clear" onclick="clearSig()">Clear</button>
+      </div>
+      <div class="ra-checkbox-row">
+        <input type="checkbox" id="f-agree">
+        <label for="f-agree">I have read and agree to the Terms & Conditions above and accept full responsibility for the trailer during the rental period.</label>
+      </div>
+    </div>
+
+    <button class="ra-submit" id="submit-btn" onclick="submitForm()" disabled>SUBMIT RENTAL AGREEMENT</button>
+    <div class="ra-status" id="ra-status"></div>
+  </div>
+</div>
+
+<script>
+const BUSINESS_EMAIL='a1atrailerretals@gmail.com';
+const RATES={'7x16':[{label:'4 hours',days:0.5,price:60},{label:'12 hours',days:0.75,price:100},{label:'1 day',days:1,price:159},{label:'2 days',days:2,price:229},{label:'3 days',days:3,price:299},{label:'4 days',days:4,price:389},{label:'5 days',days:5,price:489},{label:'6 days',days:6,price:589},{label:'7 days',days:7,price:639}],'7x20':[{label:'4 hours',days:0.5,price:70},{label:'12 hours',days:0.75,price:110},{label:'1 day',days:1,price:169},{label:'2 days',days:2,price:239},{label:'3 days',days:3,price:309},{label:'4 days',days:4,price:399},{label:'5 days',days:5,price:499},{label:'6 days',days:6,price:599},{label:'7 days',days:7,price:649}],'dump':[{label:'8 hours',days:0.75,price:130},{label:'1 day',days:1,price:180},{label:'2 days',days:2,price:285},{label:'3 days',days:3,price:410},{label:'4 days',days:4,price:525},{label:'5 days',days:5,price:629},{label:'6 days',days:6,price:699},{label:'7 days',days:7,price:765}]};
+const NAMES={'7x16':'7x16 Car Hauler','7x20':'7x20 Car Hauler','dump':"14' Dump Trailer"};
+let selectedTrailerKey=null,startDate=null,endDate=null,hasSig=false;
+const today=new Date();today.setHours(0,0,0,0);
+let calYear=today.getFullYear(),calMonth=today.getMonth();
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function selectTrailer(key,el){selectedTrailerKey=key;document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');document.getElementById('cal-section').style.display='block';document.getElementById('rates-toggle').style.display='inline-block';startDate=null;endDate=null;updateDateDisplay();renderCal();updatePricing();buildRatesTable();checkReady();}
+function prevMonth(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCal();}
+function nextMonth(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCal();}
+function renderCal(){
+  document.getElementById('cal-title').textContent=MONTHS[calMonth]+' '+calYear;
+  const grid=document.getElementById('cal-days');grid.innerHTML='';
+  const first=new Date(calYear,calMonth,1).getDay();
+  const daysIn=new Date(calYear,calMonth+1,0).getDate();
+  for(let i=0;i<first;i++){const e=document.createElement('button');e.className='cal-day empty';e.disabled=true;grid.appendChild(e);}
+  for(let d=1;d<=daysIn;d++){
+    const btn=document.createElement('button');btn.className='cal-day';btn.textContent=d;
+    const dt=new Date(calYear,calMonth,d);
+    if(dt<today){btn.classList.add('disabled');btn.disabled=true;}
+    else{if(dt.toDateString()===today.toDateString())btn.classList.add('today');if(startDate&&dt.toDateString()===startDate.toDateString())btn.classList.add('selected');if(endDate&&dt.toDateString()===endDate.toDateString())btn.classList.add('selected');if(startDate&&endDate&&dt>startDate&&dt<endDate)btn.classList.add('in-range');btn.onclick=()=>pickDate(dt);}
+    grid.appendChild(btn);
+  }
+}
+function pickDate(dt){if(!startDate||(startDate&&endDate)||dt<startDate){startDate=dt;endDate=null;}else{endDate=dt;}updateDateDisplay();renderCal();updatePricing();checkReady();}
+function fmtDate(d){if(!d)return'—';return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function updateDateDisplay(){document.getElementById('start-display').textContent=fmtDate(startDate);document.getElementById('end-display').textContent=fmtDate(endDate);}
+function daysBetween(a,b){return Math.round((b-a)/(1000*60*60*24));}
+function getBestRate(days){const rates=RATES[selectedTrailerKey];for(const r of rates){if(r.days>=days)return r;}return rates[rates.length-1];}
+function updatePricing(){
+  const card=document.getElementById('pricing-card');const msg=document.getElementById('pick-msg');
+  if(!startDate){msg.style.display='block';card.style.display='none';return;}
+  msg.style.display='none';card.style.display='block';
+  let html='';
+  if(!endDate){html='<div class="pricing-row" style="font-style:italic">Select a return date</div>';for(const r of RATES[selectedTrailerKey]){html+=`<div class="pricing-row"><span>${r.label}</span><span>$${r.price}</span></div>`;}}
+  else{const days=daysBetween(startDate,endDate);if(days===0){html='<div class="pricing-row">Please pick a different return date</div>';}else{const rate=getBestRate(days);html=`<div class="pricing-row"><span>Trailer</span><span>${NAMES[selectedTrailerKey]}</span></div><div class="pricing-row"><span>Duration</span><span>${days} day${days>1?'s':''}</span></div><div class="pricing-row"><span>Rate plan</span><span>${rate.label}</span></div><div class="pricing-row total"><span>Total</span><span>$${rate.price}</span></div>`;}}
+  card.innerHTML=html;
+}
+function buildRatesTable(){let html='';for(const r of RATES[selectedTrailerKey]){html+=`<tr><td>${r.label}</td><td>$${r.price}</td></tr>`;}document.getElementById('rates-table').innerHTML=html;}
+function toggleRates(){const w=document.getElementById('rates-table-wrap');const t=document.getElementById('rates-toggle');const open=w.style.display!=='none';w.style.display=open?'none':'block';t.textContent=open?'View all rates ▾':'Hide rates ▴';}
+function markUpload(input,doneId){if(input.files.length>0)document.getElementById(doneId).style.display='block';}
+function checkScroll(){const box=document.getElementById('terms-box');if(box.scrollTop+box.clientHeight>=box.scrollHeight-10){document.getElementById('scroll-hint').textContent='✓ All sections read';document.getElementById('scroll-hint').style.color='#27500a';}}
+function checkReady(){const name=document.getElementById('f-name').value.trim();const phone=document.getElementById('f-phone').value.trim();const email=document.getElementById('f-email').value.trim();const agree=document.getElementById('f-agree').checked;document.getElementById('submit-btn').disabled=!(name&&phone&&email&&selectedTrailerKey&&startDate&&endDate&&hasSig&&agree);}
+document.getElementById('f-agree').addEventListener('change',checkReady);
+['f-name','f-phone','f-email','f-address','f-city','f-state','f-zip'].forEach(id=>{document.getElementById(id).addEventListener('input',checkReady);});
+const canvas=document.getElementById('sig-canvas');const ctx=canvas.getContext('2d');let drawing=false,lastX=0,lastY=0;
+function resizeCanvas(){canvas.width=canvas.offsetWidth;canvas.height=130;}resizeCanvas();window.addEventListener('resize',resizeCanvas);
+function getPos(e){const rect=canvas.getBoundingClientRect();if(e.touches)return{x:e.touches[0].clientX-rect.left,y:e.touches[0].clientY-rect.top};return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
+canvas.addEventListener('mousedown',e=>{drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;});
+canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getPos(e);ctx.strokeStyle='#e03030';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;hasSig=true;document.getElementById('sig-hint').style.display='none';checkReady();});
+canvas.addEventListener('mouseup',()=>drawing=false);canvas.addEventListener('mouseleave',()=>drawing=false);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.strokeStyle='#e03030';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;hasSig=true;document.getElementById('sig-hint').style.display='none';checkReady();},{passive:false});
+canvas.addEventListener('touchend',()=>drawing=false);
+function clearSig(){ctx.clearRect(0,0,canvas.width,canvas.height);hasSig=false;document.getElementById('sig-hint').style.display='';checkReady();}
+
+async function sendEmail(to, subject, html) {
+  const res = await fetch('/.netlify/functions/send-email', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({to, subject, html})
+  });
+  return res.ok;
+}
+
+async function submitForm(){
+  const btn=document.getElementById('submit-btn');const status=document.getElementById('ra-status');btn.disabled=true;
+  const renterName=document.getElementById('f-name').value.trim();
+  const renterEmail=document.getElementById('f-email').value.trim();
+  const phone=document.getElementById('f-phone').value.trim();
+  const address=[document.getElementById('f-address').value.trim(),document.getElementById('f-city').value.trim(),document.getElementById('f-state').value.trim(),document.getElementById('f-zip').value.trim()].filter(Boolean).join(', ');
+  const trailer=NAMES[selectedTrailerKey];
+  const submitDate=new Date().toLocaleString('en-US',{dateStyle:'long',timeStyle:'short'});
+  const rentalStart=fmtDate(startDate);const rentalEnd=fmtDate(endDate);
+  const days=daysBetween(startDate,endDate);const rate=getBestRate(days);
+  status.className='ra-status loading';status.style.display='block';status.textContent='Sending confirmation emails…';
+
+  const renterHtml=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><div style="background:#0a1628;padding:24px;border-radius:8px 8px 0 0"><h1 style="color:#e03030;font-size:22px;margin:0">A1A Trailer Rentals</h1><p style="color:rgba(255,255,255,0.5);margin:4px 0 0;font-size:13px">Rental Agreement Confirmation</p></div><div style="padding:24px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px"><p>Hi <strong>${renterName}</strong>,</p><p>Thank you! Your rental agreement has been received. Here's a summary:</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Trailer</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:500">${trailer}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Start Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalStart}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Return Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalEnd}</td></tr><tr><td style="padding:8px;color:#888">Estimated Total</td><td style="padding:8px;font-weight:500;color:#e03030">$${rate.price}</td></tr></table><p>We'll be in touch shortly to confirm your pickup details.</p><p style="margin-top:24px;color:#888;font-size:13px">A1A Trailer Rentals &nbsp;|&nbsp; 904-417-8106 &nbsp;|&nbsp; St. Augustine, FL</p></div></div>`;
+
+  const businessHtml=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><div style="background:#0a1628;padding:24px;border-radius:8px 8px 0 0"><h1 style="color:#e03030;font-size:22px;margin:0">New Rental Agreement</h1><p style="color:rgba(255,255,255,0.5);margin:4px 0 0;font-size:13px">Submitted ${submitDate}</p></div><div style="padding:24px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px"><table style="width:100%;border-collapse:collapse"><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;width:40%">Name</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:500">${renterName}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Email</td><td style="padding:8px;border-bottom:1px solid #eee">${renterEmail}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Phone</td><td style="padding:8px;border-bottom:1px solid #eee">${phone}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Address</td><td style="padding:8px;border-bottom:1px solid #eee">${address}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Trailer</td><td style="padding:8px;border-bottom:1px solid #eee">${trailer}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Start Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalStart}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Return Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalEnd}</td></tr><tr><td style="padding:8px;color:#888">Total</td><td style="padding:8px;font-weight:500;color:#e03030">$${rate.price}</td></tr></table></div></div>`;
+
+  try{
+    const [r1,r2]=await Promise.all([
+      sendEmail(renterEmail,'Your A1A Trailer Rental Agreement — Confirmed!',renterHtml),
+      sendEmail(BUSINESS_EMAIL,`New Rental Agreement — ${renterName} (${trailer})`,businessHtml)
+    ]);
+    if(r1||r2){
+      status.className='ra-status success';
+      status.innerHTML=`<strong>Agreement submitted!</strong><br>Confirmation sent to <strong>${renterEmail}</strong> and the A1A team. We'll be in touch to confirm your pickup.`;
+      btn.style.display='none';
+    } else throw new Error('Email delivery failed');
+  }catch(err){
+    status.className='ra-status error';
+    status.innerHTML=`<strong>Submission received</strong>, but confirmation emails couldn't send. Please contact us at ${BUSINESS_EMAIL} or call 904-417-8106.<br><small style="opacity:0.7">${err.message}</small>`;
+    btn.disabled=false;
+  }
+}
+renderCal();
+</script>
+</body>
+</html>
