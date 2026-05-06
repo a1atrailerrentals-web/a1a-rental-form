@@ -230,7 +230,7 @@ body{background:#f4f4f0;font-family:'DM Sans',sans-serif}
 </div>
 
 <script>
-const BUSINESS_EMAIL='a1atrailerretals@gmail.com';
+const BUSINESS_EMAIL='a1atrailerrentals@gmail.com';
 const RATES={'7x16':[{label:'4 hours',days:0.5,price:60},{label:'12 hours',days:0.75,price:100},{label:'1 day',days:1,price:159},{label:'2 days',days:2,price:229},{label:'3 days',days:3,price:299},{label:'4 days',days:4,price:389},{label:'5 days',days:5,price:489},{label:'6 days',days:6,price:589},{label:'7 days',days:7,price:639}],'7x20':[{label:'4 hours',days:0.5,price:70},{label:'12 hours',days:0.75,price:110},{label:'1 day',days:1,price:169},{label:'2 days',days:2,price:239},{label:'3 days',days:3,price:309},{label:'4 days',days:4,price:399},{label:'5 days',days:5,price:499},{label:'6 days',days:6,price:599},{label:'7 days',days:7,price:649}],'dump':[{label:'8 hours',days:0.75,price:130},{label:'1 day',days:1,price:180},{label:'2 days',days:2,price:285},{label:'3 days',days:3,price:410},{label:'4 days',days:4,price:525},{label:'5 days',days:5,price:629},{label:'6 days',days:6,price:699},{label:'7 days',days:7,price:765}]};
 const NAMES={'7x16':'7x16 Car Hauler','7x20':'7x20 Car Hauler','dump':"14' Dump Trailer"};
 let selectedTrailerKey=null,startDate=null,endDate=null,hasSig=false;
@@ -331,4 +331,34 @@ async function submitForm(){
 renderCal();
 </script>
 </body>
-</html>
+</html>exports.handler = async function(event) {
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
+
+  const RESEND_API_KEY = 're_jN7gPLtM_Fc9EfyrAWU6kerizRgJ4ns4j';
+  const { to, subject, html } = JSON.parse(event.body);
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${RESEND_API_KEY}`
+    },
+    body: JSON.stringify({
+      from: 'A1A Trailer Rentals <onboarding@resend.dev>',
+      to: [to],
+      subject,
+      html
+    })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    return { statusCode: 500, body: JSON.stringify({ error: data }) };
+  }
+
+  return { statusCode: 200, body: JSON.stringify({ success: true }) };
+};
+
