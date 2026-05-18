@@ -271,29 +271,83 @@ function updatePricing(){
 }
 function buildRatesTable(){let html='';for(const r of RATES[selectedTrailerKey]){html+=`<tr><td>${r.label}</td><td>$${r.price}</td></tr>`;}document.getElementById('rates-table').innerHTML=html;}
 function toggleRates(){const w=document.getElementById('rates-table-wrap');const t=document.getElementById('rates-toggle');const open=w.style.display!=='none';w.style.display=open?'none':'block';t.textContent=open?'View all rates ▾':'Hide rates ▴';}
-function markUpload(input,doneId){if(input.files.length>0)document.getElementById(doneId).style.display='block';}
+function markUpload(input,doneId){if(input.files.length>0)document.getElementById(doneId).style.display='block';checkReady();}
 function checkScroll(){const box=document.getElementById('terms-box');if(box.scrollTop+box.clientHeight>=box.scrollHeight-10){document.getElementById('scroll-hint').textContent='✓ All sections read';document.getElementById('scroll-hint').style.color='#27500a';}}
-function checkReady(){const name=document.getElementById('f-name').value.trim();const phone=document.getElementById('f-phone').value.trim();const email=document.getElementById('f-email').value.trim();const agree=document.getElementById('f-agree').checked;document.getElementById('submit-btn').disabled=!(name&&phone&&email&&selectedTrailerKey&&startDate&&endDate&&hasSig&&agree);}
+function checkReady(){
+  const name=document.getElementById('f-name').value.trim();
+  const phone=document.getElementById('f-phone').value.trim();
+  const email=document.getElementById('f-email').value.trim();
+  const address=document.getElementById('f-address').value.trim();
+  const city=document.getElementById('f-city').value.trim();
+  const state=document.getElementById('f-state').value.trim();
+  const zip=document.getElementById('f-zip').value.trim();
+  const agree=document.getElementById('f-agree').checked;
+  const license=document.getElementById('ul-license').files.length>0;
+  const reg=document.getElementById('ul-reg').files.length>0;
+  const ins=document.getElementById('ul-ins').files.length>0;
+  document.getElementById('submit-btn').disabled=!(name&&phone&&email&&address&&city&&state&&zip&&selectedTrailerKey&&startDate&&endDate&&hasSig&&agree&&license&&reg&&ins);
+}
 document.getElementById('f-agree').addEventListener('change',checkReady);
 ['f-name','f-phone','f-email','f-address','f-city','f-state','f-zip'].forEach(id=>{document.getElementById(id).addEventListener('input',checkReady);});
 const canvas=document.getElementById('sig-canvas');const ctx=canvas.getContext('2d');let drawing=false,lastX=0,lastY=0;
 function resizeCanvas(){canvas.width=canvas.offsetWidth;canvas.height=130;}resizeCanvas();window.addEventListener('resize',resizeCanvas);
 function getPos(e){const rect=canvas.getBoundingClientRect();if(e.touches)return{x:e.touches[0].clientX-rect.left,y:e.touches[0].clientY-rect.top};return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
 canvas.addEventListener('mousedown',e=>{drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;});
-canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getPos(e);ctx.strokeStyle='#e03030';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;hasSig=true;document.getElementById('sig-hint').style.display='none';checkReady();});
+canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getPos(e);ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;hasSig=true;document.getElementById('sig-hint').style.display='none';checkReady();});
 canvas.addEventListener('mouseup',()=>drawing=false);canvas.addEventListener('mouseleave',()=>drawing=false);
 canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;},{passive:false});
-canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.strokeStyle='#e03030';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;hasSig=true;document.getElementById('sig-hint').style.display='none';checkReady();},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;hasSig=true;document.getElementById('sig-hint').style.display='none';checkReady();},{passive:false});
 canvas.addEventListener('touchend',()=>drawing=false);
 function clearSig(){ctx.clearRect(0,0,canvas.width,canvas.height);hasSig=false;document.getElementById('sig-hint').style.display='';checkReady();}
 
-async function sendEmail(to, subject, html) {
-  const res = await fetch('/.netlify/functions/send-email', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({to, subject, html})
+// --- File handling helpers ---------------------------------------------------
+// Reads a File and returns a base64-encoded string + filename + contentType
+// suitable for Resend attachments. Images are resized to max 1600px wide and
+// re-encoded as JPEG (quality 0.85) to keep payloads under the Netlify Function
+// 6MB request body limit. PDFs are passed through as-is.
+function fileToBase64Raw(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(',')[1]);
+    reader.onerror=()=>reject(new Error('Could not read '+file.name));
+    reader.readAsDataURL(file);
   });
-  return res.ok;
+}
+function resizeImageToJpeg(file,maxWidth,quality){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      const ratio=Math.min(1,maxWidth/img.width);
+      const w=Math.round(img.width*ratio);
+      const h=Math.round(img.height*ratio);
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      const cctx=c.getContext('2d');
+      cctx.fillStyle='#fff';cctx.fillRect(0,0,w,h);
+      cctx.drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      const dataUrl=c.toDataURL('image/jpeg',quality);
+      resolve(dataUrl.split(',')[1]);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Could not load image '+file.name));};
+    img.src=url;
+  });
+}
+async function buildAttachment(file,desiredBaseName){
+  if(!file)return null;
+  if(file.type.startsWith('image/')){
+    const content=await resizeImageToJpeg(file,1600,0.85);
+    return {filename:desiredBaseName+'.jpg',content,contentType:'image/jpeg'};
+  }
+  const content=await fileToBase64Raw(file);
+  const ext=(file.name.match(/\.[^.]+$/)||[''])[0]||'';
+  return {filename:desiredBaseName+ext,content,contentType:file.type||'application/octet-stream'};
+}
+function getSignatureAttachment(){
+  if(!hasSig)return null;
+  const dataUrl=canvas.toDataURL('image/png');
+  return {filename:'signature.png',content:dataUrl.split(',')[1],contentType:'image/png'};
 }
 
 async function submitForm(){
@@ -306,22 +360,60 @@ async function submitForm(){
   const submitDate=new Date().toLocaleString('en-US',{dateStyle:'long',timeStyle:'short'});
   const rentalStart=fmtDate(startDate);const rentalEnd=fmtDate(endDate);
   const days=daysBetween(startDate,endDate);const rate=getBestRate(days);
-  status.className='ra-status loading';status.style.display='block';status.textContent='Sending confirmation emails…';
 
-  const renterHtml=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><div style="background:#0a1628;padding:24px;border-radius:8px 8px 0 0"><h1 style="color:#e03030;font-size:22px;margin:0">A1A Trailer Rentals</h1><p style="color:rgba(255,255,255,0.5);margin:4px 0 0;font-size:13px">Rental Agreement Confirmation</p></div><div style="padding:24px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px"><p>Hi <strong>${renterName}</strong>,</p><p>Thank you! Your rental agreement has been received. Here's a summary:</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Trailer</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:500">${trailer}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Start Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalStart}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Return Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalEnd}</td></tr><tr><td style="padding:8px;color:#888">Estimated Total</td><td style="padding:8px;font-weight:500;color:#e03030">$${rate.price}</td></tr></table><p>We'll be in touch shortly to confirm your pickup details.</p><p style="margin-top:24px;color:#888;font-size:13px">A1A Trailer Rentals &nbsp;|&nbsp; 904-417-8106 &nbsp;|&nbsp; St. Augustine, FL</p></div></div>`;
+  status.className='ra-status loading';status.style.display='block';status.textContent='Processing documents…';
 
-  const businessHtml=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><div style="background:#0a1628;padding:24px;border-radius:8px 8px 0 0"><h1 style="color:#e03030;font-size:22px;margin:0">New Rental Agreement</h1><p style="color:rgba(255,255,255,0.5);margin:4px 0 0;font-size:13px">Submitted ${submitDate}</p></div><div style="padding:24px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px"><table style="width:100%;border-collapse:collapse"><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;width:40%">Name</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:500">${renterName}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Email</td><td style="padding:8px;border-bottom:1px solid #eee">${renterEmail}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Phone</td><td style="padding:8px;border-bottom:1px solid #eee">${phone}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Address</td><td style="padding:8px;border-bottom:1px solid #eee">${address}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Trailer</td><td style="padding:8px;border-bottom:1px solid #eee">${trailer}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Start Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalStart}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Return Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalEnd}</td></tr><tr><td style="padding:8px;color:#888">Total</td><td style="padding:8px;font-weight:500;color:#e03030">$${rate.price}</td></tr></table></div></div>`;
+  let attachments=[];
+  try{
+    const safeName=renterName.replace(/[^a-z0-9]+/gi,'_').toLowerCase()||'renter';
+    const license=document.getElementById('ul-license').files[0];
+    const reg=document.getElementById('ul-reg').files[0];
+    const ins=document.getElementById('ul-ins').files[0];
+    const [lic,rg,inn]=await Promise.all([
+      buildAttachment(license,safeName+'_license'),
+      buildAttachment(reg,safeName+'_registration'),
+      buildAttachment(ins,safeName+'_insurance')
+    ]);
+    if(lic)attachments.push(lic);
+    if(rg)attachments.push(rg);
+    if(inn)attachments.push(inn);
+    const sig=getSignatureAttachment();
+    if(sig){sig.filename=safeName+'_signature.png';attachments.push(sig);}
+  }catch(err){
+    status.className='ra-status error';
+    status.innerHTML=`<strong>Could not process your uploads.</strong><br>${err.message}<br>Please try a smaller file or a different format.`;
+    btn.disabled=false;
+    return;
+  }
+
+  status.textContent='Sending confirmation emails…';
+
+  const renterHtml=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><div style="background:#0a1628;padding:24px;border-radius:8px 8px 0 0"><h1 style="color:#e03030;font-size:22px;margin:0">A1A Trailer Rentals</h1><p style="color:rgba(255,255,255,0.5);margin:4px 0 0;font-size:13px">Rental Agreement Confirmation</p></div><div style="padding:24px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px"><p>Hi <strong>${renterName}</strong>,</p><p>Thank you! Your rental agreement has been received. Here's a summary:</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Trailer</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:500">${trailer}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Start Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalStart}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Return Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalEnd}</td></tr><tr><td style="padding:8px;color:#888">Estimated Total</td><td style="padding:8px;font-weight:500;color:#e03030">$${rate.price}</td></tr></table><p>Attached to this email is a copy of the documents you submitted and your signature for your records.</p><p>We'll be in touch shortly to confirm your pickup details.</p><p style="margin-top:24px;color:#888;font-size:13px">A1A Trailer Rentals &nbsp;|&nbsp; 904-417-8106 &nbsp;|&nbsp; St. Augustine, FL</p></div></div>`;
+
+  const businessHtml=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto"><div style="background:#0a1628;padding:24px;border-radius:8px 8px 0 0"><h1 style="color:#e03030;font-size:22px;margin:0">New Rental Agreement</h1><p style="color:rgba(255,255,255,0.5);margin:4px 0 0;font-size:13px">Submitted ${submitDate}</p></div><div style="padding:24px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px"><table style="width:100%;border-collapse:collapse"><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;width:40%">Name</td><td style="padding:8px;border-bottom:1px solid #eee;font-weight:500">${renterName}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Email</td><td style="padding:8px;border-bottom:1px solid #eee">${renterEmail}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Phone</td><td style="padding:8px;border-bottom:1px solid #eee">${phone}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Address</td><td style="padding:8px;border-bottom:1px solid #eee">${address}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Trailer</td><td style="padding:8px;border-bottom:1px solid #eee">${trailer}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Start Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalStart}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888">Return Date</td><td style="padding:8px;border-bottom:1px solid #eee">${rentalEnd}</td></tr><tr><td style="padding:8px;color:#888">Total</td><td style="padding:8px;font-weight:500;color:#e03030">$${rate.price}</td></tr></table><p style="margin-top:16px;font-size:13px;color:#666">License, registration, insurance, and signature are attached.</p></div></div>`;
 
   try{
-    const [r1,r2]=await Promise.all([
-      sendEmail(renterEmail,'Your A1A Trailer Rental Agreement — Confirmed!',renterHtml),
-      sendEmail(BUSINESS_EMAIL,`New Rental Agreement — ${renterName} (${trailer})`,businessHtml)
-    ]);
-    if(r1||r2){
+    const res=await fetch('/.netlify/functions/send-email',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        renterEmail,
+        businessEmail:BUSINESS_EMAIL,
+        renterSubject:'Your A1A Trailer Rental Agreement — Confirmed!',
+        businessSubject:`New Rental Agreement — ${renterName} (${trailer})`,
+        renterHtml,
+        businessHtml,
+        attachments
+      })
+    });
+    const data=await res.json().catch(()=>({}));
+    if(res.ok&&data.ok){
       status.className='ra-status success';
       status.innerHTML=`<strong>Agreement submitted!</strong><br>Confirmation sent to <strong>${renterEmail}</strong> and the A1A team. We'll be in touch to confirm your pickup.`;
       btn.style.display='none';
-    } else throw new Error('Email delivery failed');
+    }else{
+      throw new Error(data.error||('HTTP '+res.status));
+    }
   }catch(err){
     status.className='ra-status error';
     status.innerHTML=`<strong>Submission received</strong>, but confirmation emails couldn't send. Please contact us at ${BUSINESS_EMAIL} or call 904-417-8106.<br><small style="opacity:0.7">${err.message}</small>`;
