@@ -1,7 +1,9 @@
 {
-  "name": "send-email",
+  "name": "a1a-trailer-rentals-backend",
   "version": "1.0.0",
+  "private": true,
+  "description": "Serverless functions for A1A Trailer Rentals contactless agreement: secure email sending and Stripe payment/deposit collection.",
   "dependencies": {
-    "resend": "^4.0.0"
+    "stripe": "^14.25.0"
   }
 }
