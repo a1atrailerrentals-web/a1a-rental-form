@@ -5,6 +5,16 @@
 // SERVER-SIDE from the trailer + dates (never trusted from the browser)
 // so a renter can't tamper with the amount before paying.
 //
+// Most rates are whole-day tiers, matched from the calendar day
+// difference between startDate/endDate. A few short-term rates (4-hour,
+// 12-hour, 8-hour) are less than one day and can't be expressed as a
+// calendar date range at all, so the front end instead sends an explicit
+// `durationKey` (e.g. "4h") identifying exactly which rate tier the
+// renter picked. When durationKey is present we look the rate up
+// directly by key instead of computing it from the date difference —
+// the price still comes only from this server-side RATES table, so the
+// renter still can't influence the charged amount.
+//
 // After a successful payment, Stripe redirects to success.html and
 // (separately) fires a webhook that notifies the business — see
 // stripe-webhook.js.
@@ -16,19 +26,36 @@ const SITE_URL = process.env.SITE_URL; // e.g. https://a1atrailerrentals.netlify
 
 const RATES = {
   '7x16': [
-    { days: 0.5, price: 60 }, { days: 0.75, price: 100 }, { days: 1, price: 159 },
-    { days: 2, price: 229 }, { days: 3, price: 299 }, { days: 4, price: 389 },
-    { days: 5, price: 489 }, { days: 6, price: 589 }, { days: 7, price: 639 },
+    { key: '4h', label: '4 hours', days: 0.5, price: 60 },
+    { key: '12h', label: '12 hours', days: 0.75, price: 100 },
+    { key: '1d', label: '1 day', days: 1, price: 159 },
+    { key: '2d', label: '2 days', days: 2, price: 229 },
+    { key: '3d', label: '3 days', days: 3, price: 299 },
+    { key: '4d', label: '4 days', days: 4, price: 389 },
+    { key: '5d', label: '5 days', days: 5, price: 489 },
+    { key: '6d', label: '6 days', days: 6, price: 589 },
+    { key: '7d', label: '7 days', days: 7, price: 639 },
   ],
   '7x20': [
-    { days: 0.5, price: 70 }, { days: 0.75, price: 110 }, { days: 1, price: 169 },
-    { days: 2, price: 239 }, { days: 3, price: 309 }, { days: 4, price: 399 },
-    { days: 5, price: 499 }, { days: 6, price: 599 }, { days: 7, price: 649 },
+    { key: '4h', label: '4 hours', days: 0.5, price: 70 },
+    { key: '12h', label: '12 hours', days: 0.75, price: 110 },
+    { key: '1d', label: '1 day', days: 1, price: 169 },
+    { key: '2d', label: '2 days', days: 2, price: 239 },
+    { key: '3d', label: '3 days', days: 3, price: 309 },
+    { key: '4d', label: '4 days', days: 4, price: 399 },
+    { key: '5d', label: '5 days', days: 5, price: 499 },
+    { key: '6d', label: '6 days', days: 6, price: 599 },
+    { key: '7d', label: '7 days', days: 7, price: 649 },
   ],
   dump: [
-    { days: 0.75, price: 130 }, { days: 1, price: 180 }, { days: 2, price: 285 },
-    { days: 3, price: 410 }, { days: 4, price: 525 }, { days: 5, price: 629 },
-    { days: 6, price: 699 }, { days: 7, price: 765 },
+    { key: '8h', label: '8 hours', days: 0.75, price: 130 },
+    { key: '1d', label: '1 day', days: 1, price: 180 },
+    { key: '2d', label: '2 days', days: 2, price: 285 },
+    { key: '3d', label: '3 days', days: 3, price: 410 },
+    { key: '4d', label: '4 days', days: 4, price: 525 },
+    { key: '5d', label: '5 days', days: 5, price: 629 },
+    { key: '6d', label: '6 days', days: 6, price: 699 },
+    { key: '7d', label: '7 days', days: 7, price: 765 },
   ],
 };
 const NAMES = { '7x16': '7x16 Car Hauler', '7x20': '7x20 Car Hauler', dump: "14' Dump Trailer" };
@@ -55,19 +82,29 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
 
-  const { trailerKey, startDate, endDate, name, email } = data;
+  const { trailerKey, startDate, endDate, durationKey, name, email } = data;
   if (!trailerKey || !RATES[trailerKey] || !startDate || !endDate || !email) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing or invalid fields' }) };
   }
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const days = Math.round((end - start) / (1000 * 60 * 60 * 24));
-  if (!(days > 0)) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid date range' }) };
+  let rate;
+  if (durationKey) {
+    // Short-term (sub-24-hour) rate, selected explicitly on the form —
+    // can't be derived from a calendar date difference.
+    rate = RATES[trailerKey].find((r) => r.key === durationKey);
+    if (!rate) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid duration key' }) };
+    }
+  } else {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = Math.round((end - start) / (1000 * 60 * 60 * 24));
+    if (!(days > 0)) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid date range' }) };
+    }
+    rate = getBestRate(trailerKey, days);
   }
 
-  const rate = getBestRate(trailerKey, days);
   const deposit = DEPOSITS[trailerKey];
   const trailerName = NAMES[trailerKey];
 
@@ -80,7 +117,7 @@ exports.handler = async (event) => {
         {
           price_data: {
             currency: 'usd',
-            product_data: { name: `${trailerName} Rental (${rate.label || days + ' day(s)'})` },
+            product_data: { name: `${trailerName} Rental (${rate.label})` },
             unit_amount: Math.round(rate.price * 100),
           },
           quantity: 1,
@@ -102,6 +139,7 @@ exports.handler = async (event) => {
         trailer: trailerName,
         start_date: startDate,
         end_date: endDate,
+        rate_label: rate.label,
         rental_amount: String(rate.price),
         deposit_amount: String(deposit),
       },
