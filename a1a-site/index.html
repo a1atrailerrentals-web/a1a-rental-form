@@ -54,6 +54,9 @@ body{background:#f4f4f0;font-family:'DM Sans',sans-serif}
 .pricing-row:last-child{border-bottom:none}
 .pricing-row.total{font-weight:500;background:#e03030;color:#fff;padding:10px 12px}
 .pricing-row.total span{color:#fff}
+.pricing-row.clickable{cursor:pointer;transition:background 0.15s}
+.pricing-row.clickable:hover{background:rgba(224,48,48,0.08)}
+.pricing-row.clickable .hint{font-size:10px;color:#e03030;margin-left:6px}
 .no-selection{font-size:13px;color:#888;padding:8px 0;text-align:center}
 .rates-toggle{font-size:12px;color:#888;cursor:pointer;text-decoration:underline;margin-top:8px;display:inline-block}
 .rates-table{margin-top:8px;width:100%;border-collapse:collapse}
@@ -270,14 +273,14 @@ body{background:#f4f4f0;font-family:'DM Sans',sans-serif}
 //   /.netlify/functions/create-checkout-session (creates the Stripe payment)
 // See SETUP.md in this folder for how to deploy and configure those.
 
-const RATES={'7x16':[{label:'4 hours',days:0.5,price:60},{label:'12 hours',days:0.75,price:100},{label:'1 day',days:1,price:159},{label:'2 days',days:2,price:229},{label:'3 days',days:3,price:299},{label:'4 days',days:4,price:389},{label:'5 days',days:5,price:489},{label:'6 days',days:6,price:589},{label:'7 days',days:7,price:639}],'7x20':[{label:'4 hours',days:0.5,price:70},{label:'12 hours',days:0.75,price:110},{label:'1 day',days:1,price:169},{label:'2 days',days:2,price:239},{label:'3 days',days:3,price:309},{label:'4 days',days:4,price:399},{label:'5 days',days:5,price:499},{label:'6 days',days:6,price:599},{label:'7 days',days:7,price:649}],'dump':[{label:'8 hours',days:0.75,price:130},{label:'1 day',days:1,price:180},{label:'2 days',days:2,price:285},{label:'3 days',days:3,price:410},{label:'4 days',days:4,price:525},{label:'5 days',days:5,price:629},{label:'6 days',days:6,price:699},{label:'7 days',days:7,price:765}]};
+const RATES={'7x16':[{key:'4h',label:'4 hours',days:0.5,price:60},{key:'12h',label:'12 hours',days:0.75,price:100},{key:'1d',label:'1 day',days:1,price:159},{key:'2d',label:'2 days',days:2,price:229},{key:'3d',label:'3 days',days:3,price:299},{key:'4d',label:'4 days',days:4,price:389},{key:'5d',label:'5 days',days:5,price:489},{key:'6d',label:'6 days',days:6,price:589},{key:'7d',label:'7 days',days:7,price:639}],'7x20':[{key:'4h',label:'4 hours',days:0.5,price:70},{key:'12h',label:'12 hours',days:0.75,price:110},{key:'1d',label:'1 day',days:1,price:169},{key:'2d',label:'2 days',days:2,price:239},{key:'3d',label:'3 days',days:3,price:309},{key:'4d',label:'4 days',days:4,price:399},{key:'5d',label:'5 days',days:5,price:499},{key:'6d',label:'6 days',days:6,price:599},{key:'7d',label:'7 days',days:7,price:649}],'dump':[{key:'8h',label:'8 hours',days:0.75,price:130},{key:'1d',label:'1 day',days:1,price:180},{key:'2d',label:'2 days',days:2,price:285},{key:'3d',label:'3 days',days:3,price:410},{key:'4d',label:'4 days',days:4,price:525},{key:'5d',label:'5 days',days:5,price:629},{key:'6d',label:'6 days',days:6,price:699},{key:'7d',label:'7 days',days:7,price:765}]};
 const NAMES={'7x16':'7x16 Car Hauler','7x20':'7x20 Car Hauler','dump':"14' Dump Trailer"};
-let selectedTrailerKey=null,startDate=null,endDate=null,hasSig=false;
+let selectedTrailerKey=null,startDate=null,endDate=null,selectedRate=null,hasSig=false;
 const today=new Date();today.setHours(0,0,0,0);
 let calYear=today.getFullYear(),calMonth=today.getMonth();
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-function selectTrailer(key,el){selectedTrailerKey=key;document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');document.getElementById('cal-section').style.display='block';document.getElementById('rates-toggle').style.display='inline-block';startDate=null;endDate=null;updateDateDisplay();renderCal();updatePricing();buildRatesTable();checkReady();}
+function selectTrailer(key,el){selectedTrailerKey=key;document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');document.getElementById('cal-section').style.display='block';document.getElementById('rates-toggle').style.display='inline-block';startDate=null;endDate=null;selectedRate=null;updateDateDisplay();renderCal();updatePricing();buildRatesTable();checkReady();}
 function prevMonth(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCal();}
 function nextMonth(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCal();}
 
@@ -291,15 +294,31 @@ function renderCal(){
     const btn=document.createElement('button');btn.className='cal-day';btn.textContent=d;
     const dt=new Date(calYear,calMonth,d);
     if(dt<today){btn.classList.add('disabled');btn.disabled=true;}
-    else{if(dt.toDateString()===today.toDateString())btn.classList.add('today');if(startDate&&dt.toDateString()===startDate.toDateString())btn.classList.add('selected');if(endDate&&dt.toDateString()===endDate.toDateString())btn.classList.add('selected');if(startDate&&endDate&&dt>startDate&&dt<endDate)btn.classList.add('in-range');btn.onclick=()=>pickDate(dt);}
+    else{if(dt.toDateString()===today.toDateString())btn.classList.add('today');if(startDate&&dt.toDateString()===startDate.toDateString())btn.classList.add('selected');if(endDate&&!selectedRate&&dt.toDateString()===endDate.toDateString())btn.classList.add('selected');if(startDate&&endDate&&!selectedRate&&dt>startDate&&dt<endDate)btn.classList.add('in-range');btn.onclick=()=>pickDate(dt);}
     grid.appendChild(btn);
   }
 }
 
-function pickDate(dt){if(!startDate||(startDate&&endDate)||dt<startDate){startDate=dt;endDate=null;}else{endDate=dt;}updateDateDisplay();renderCal();updatePricing();checkReady();}
+function pickDate(dt){selectedRate=null;if(!startDate||(startDate&&endDate)||dt<startDate){startDate=dt;endDate=null;}else{endDate=dt;}updateDateDisplay();renderCal();updatePricing();checkReady();}
+
+// Selecting one of the short-term (sub-24-hour) rates. These can't be
+// expressed as a calendar day range, so picking one sets the return date
+// to the same calendar day and remembers exactly which rate was chosen.
+function chooseHourlyRate(key){
+  if(!startDate||!selectedTrailerKey)return;
+  const rate=RATES[selectedTrailerKey].find(r=>r.key===key);
+  if(!rate)return;
+  selectedRate=rate;
+  endDate=startDate;
+  updateDateDisplay();
+  renderCal();
+  updatePricing();
+  checkReady();
+}
+
 function fmtDate(d){if(!d)return'—';return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function isoDate(d){if(!d)return'';const m=(d.getMonth()+1).toString().padStart(2,'0');const day=d.getDate().toString().padStart(2,'0');return `${d.getFullYear()}-${m}-${day}`;}
-function updateDateDisplay(){document.getElementById('start-display').textContent=fmtDate(startDate);document.getElementById('end-display').textContent=fmtDate(endDate);}
+function updateDateDisplay(){document.getElementById('start-display').textContent=fmtDate(startDate);document.getElementById('end-display').textContent=selectedRate?`${fmtDate(startDate)} · ${selectedRate.label}`:fmtDate(endDate);}
 function daysBetween(a,b){return Math.round((b-a)/(1000*60*60*24));}
 function getBestRate(days){const rates=RATES[selectedTrailerKey];for(const r of rates){if(r.days>=days)return r;}return rates[rates.length-1];}
 
@@ -308,8 +327,22 @@ function updatePricing(){
   if(!startDate){msg.style.display='block';card.style.display='none';return;}
   msg.style.display='none';card.style.display='block';
   let html='';
-  if(!endDate){html='<div class="pricing-row" style="font-style:italic">Select a return date</div>';for(const r of RATES[selectedTrailerKey]){html+=`<div class="pricing-row"><span>${r.label}</span><span>$${r.price}</span></div>`;}}
-  else{const days=daysBetween(startDate,endDate);if(days===0){html='<div class="pricing-row">Please pick a different return date</div>';}else{const rate=getBestRate(days);html=`<div class="pricing-row"><span>Trailer</span><span>${NAMES[selectedTrailerKey]}</span></div><div class="pricing-row"><span>Duration</span><span>${days} day${days>1?'s':''}</span></div><div class="pricing-row"><span>Rate plan</span><span>${rate.label}</span></div><div class="pricing-row total"><span>Total</span><span>$${rate.price}</span></div>`;}}
+  if(selectedRate){
+    html=`<div class="pricing-row"><span>Trailer</span><span>${NAMES[selectedTrailerKey]}</span></div><div class="pricing-row"><span>Duration</span><span>${selectedRate.label}</span></div><div class="pricing-row total"><span>Total</span><span>$${selectedRate.price}</span></div>`;
+  }else if(!endDate){
+    html='<div class="pricing-row" style="font-style:italic">Select a return date below, or tap a short-term rate here</div>';
+    for(const r of RATES[selectedTrailerKey]){
+      if(r.days<1){
+        html+=`<div class="pricing-row clickable" onclick="chooseHourlyRate('${r.key}')"><span>${r.label}<span class="hint">tap to select</span></span><span>$${r.price}</span></div>`;
+      }else{
+        html+=`<div class="pricing-row"><span>${r.label}</span><span>$${r.price}</span></div>`;
+      }
+    }
+  }else{
+    const days=daysBetween(startDate,endDate);
+    if(days===0){html='<div class="pricing-row">Please pick a different return date, or choose a short-term rate above</div>';}
+    else{const rate=getBestRate(days);html=`<div class="pricing-row"><span>Trailer</span><span>${NAMES[selectedTrailerKey]}</span></div><div class="pricing-row"><span>Duration</span><span>${days} day${days>1?'s':''}</span></div><div class="pricing-row"><span>Rate plan</span><span>${rate.label}</span></div><div class="pricing-row total"><span>Total</span><span>$${rate.price}</span></div>`;}
+  }
   card.innerHTML=html;
 }
 
@@ -327,7 +360,8 @@ function checkReady(){
   const insDone=document.getElementById('ul-ins').files.length>0;
   const docsHint=document.getElementById('docs-required-hint');
   docsHint.style.display=(!licenseDone||!regDone||!insDone)?'block':'none';
-  document.getElementById('submit-btn').disabled=!(name&&phone&&email&&selectedTrailerKey&&startDate&&endDate&&hasSig&&agree&&licenseDone&&regDone&&insDone);
+  const validDuration=!!selectedRate||(!!endDate&&daysBetween(startDate,endDate)>0);
+  document.getElementById('submit-btn').disabled=!(name&&phone&&email&&selectedTrailerKey&&startDate&&validDuration&&hasSig&&agree&&licenseDone&&regDone&&insDone);
 }
 
 document.getElementById('f-agree').addEventListener('change',checkReady);
@@ -363,7 +397,8 @@ async function submitForm(){
   const state=document.getElementById('f-state').value.trim();
   const zip=document.getElementById('f-zip').value.trim();
   const trailer=NAMES[selectedTrailerKey];
-  const rentalStart=fmtDate(startDate);const rentalEnd=fmtDate(endDate);
+  const rentalStart=fmtDate(startDate);
+  const rentalEnd=selectedRate?`${fmtDate(startDate)} (${selectedRate.label})`:fmtDate(endDate);
 
   try{
     status.className='ra-status loading';status.style.display='block';status.textContent='Submitting your agreement and documents…';
@@ -403,6 +438,7 @@ async function submitForm(){
         trailerKey:selectedTrailerKey,
         startDate:isoDate(startDate),
         endDate:isoDate(endDate),
+        durationKey:selectedRate?selectedRate.key:null,
         name:renterName,
         email:renterEmail
       })
