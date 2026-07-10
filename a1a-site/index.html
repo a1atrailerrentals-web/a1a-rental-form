@@ -387,6 +387,53 @@ function fileToBase64(file){
   });
 }
 
+// The Netlify function this page posts to has a hard 6MB request-body limit
+// (it's a synchronous serverless function under the hood). A raw phone photo
+// can easily be several MB on its own, and base64 adds ~33% on top of that,
+// so three uploaded documents plus a signature can blow past that limit and
+// the submission is rejected before our own code even runs. To keep real
+// phone photos working reliably, downscale + re-encode images client-side
+// before sending. PDFs are passed through unchanged (they can't be resized
+// this way, and are rarely as large as photos).
+function compressImageFile(file,maxDim=1600,quality=0.72){
+  if(!file.type||!file.type.startsWith('image/')){
+    return fileToBase64(file);
+  }
+  return new Promise((resolve)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    const fallback=()=>{URL.revokeObjectURL(url);fileToBase64(file).then(resolve).catch(()=>resolve(null));};
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let{width,height}=img;
+      if(width>maxDim||height>maxDim){
+        if(width>height){height=Math.round(height*(maxDim/width));width=maxDim;}
+        else{width=Math.round(width*(maxDim/height));height=maxDim;}
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=width;canvas.height=height;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,width,height);
+      try{resolve(canvas.toDataURL('image/jpeg',quality));}
+      catch(e){fallback();}
+    };
+    img.onerror=fallback;
+    img.src=url;
+  });
+}
+function outputFilename(file){
+  if(file.type&&file.type.startsWith('image/')){
+    return file.name.replace(/\.[^.]+$/,'')+'.jpg';
+  }
+  return file.name;
+}
+function approxBytesFromDataUrl(dataUrl){
+  if(!dataUrl)return 0;
+  const idx=dataUrl.indexOf(',');
+  const b64=idx===-1?dataUrl:dataUrl.slice(idx+1);
+  return Math.ceil(b64.length*3/4);
+}
+
 async function submitForm(){
   const btn=document.getElementById('submit-btn');const status=document.getElementById('ra-status');btn.disabled=true;
   const renterName=document.getElementById('f-name').value.trim();
@@ -408,12 +455,19 @@ async function submitForm(){
     const insFile=document.getElementById('ul-ins').files[0];
     const signature=canvas.toDataURL('image/png');
 
+    status.textContent='Preparing your documents…';
     const [license,registration,insurance]=await Promise.all([
-      fileToBase64(licenseFile),
-      fileToBase64(regFile),
-      fileToBase64(insFile)
+      compressImageFile(licenseFile),
+      compressImageFile(regFile),
+      compressImageFile(insFile)
     ]);
 
+    const totalBytes=approxBytesFromDataUrl(signature)+approxBytesFromDataUrl(license)+approxBytesFromDataUrl(registration)+approxBytesFromDataUrl(insurance);
+    if(totalBytes>5*1024*1024){
+      throw new Error('Your uploaded files are still too large to submit, even after compression. Please retake the photos (regular photo mode, not HDR/RAW) or text them to 904-417-8106 and we\'ll complete your booking manually.');
+    }
+
+    status.textContent='Submitting your agreement and documents…';
     const submitRes=await fetch('/.netlify/functions/submit-agreement',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -421,9 +475,9 @@ async function submitForm(){
         name:renterName,email:renterEmail,phone,address,city,state,zip,
         trailerName:trailer,startDate:rentalStart,endDate:rentalEnd,
         signature,
-        license,licenseFilename:licenseFile.name,
-        registration,registrationFilename:regFile.name,
-        insurance,insuranceFilename:insFile.name
+        license,licenseFilename:outputFilename(licenseFile),
+        registration,registrationFilename:outputFilename(regFile),
+        insurance,insuranceFilename:outputFilename(insFile)
       })
     });
     const submitData=await submitRes.json().catch(()=>({}));
