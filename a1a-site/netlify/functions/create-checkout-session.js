@@ -137,6 +137,7 @@ exports.handler = async (event) => {
       metadata: {
         renter_name: name || '',
         trailer: trailerName,
+        trailer_key: trailerKey,
         start_date: startDate,
         end_date: endDate,
         rate_label: rate.label,
