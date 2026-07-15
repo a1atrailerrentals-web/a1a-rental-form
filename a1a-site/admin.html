@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Availability Admin — A1A Trailer Rentals</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f4f4f0;font-family:'DM Sans',sans-serif;color:#111}
+.wrap{max-width:640px;margin:2rem auto;padding:0 1rem 3rem}
+.hero{background:#0a1628;padding:1.5rem 1.75rem;border-radius:12px 12px 0 0}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:#e03030}
+.hero p{color:rgba(255,255,255,0.5);font-size:12px;margin-top:4px}
+.card{background:#fff;border-radius:0 0 12px 12px;padding:1.5rem 1.75rem;box-shadow:0 2px 16px rgba(0,0,0,0.08)}
+.gate{background:#fff;border-radius:12px;padding:1.75rem;box-shadow:0 2px 16px rgba(0,0,0,0.08);margin-top:1.5rem}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-size:12px;color:#666;font-weight:500}
+.field input,.field select{height:38px;border:0.5px solid #ccc;border-radius:8px;padding:0 10px;font-size:14px;font-family:'DM Sans',sans-serif}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{height:40px;background:#e03030;color:#fff;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;cursor:pointer;padding:0 20px}
+.btn:hover{opacity:0.88}
+.btn:disabled{opacity:0.35;cursor:not-allowed}
+.section-label{font-size:11px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin:1.5rem 0 0.75rem;padding-bottom:0.4rem;border-bottom:0.5px solid #ddd}
+.section-label:first-child{margin-top:0}
+.range-item{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:0.5px solid #eee;border-radius:8px;margin-bottom:6px;font-size:13px}
+.range-item .tag{font-size:10px;text-transform:uppercase;letter-spacing:0.5px;padding:2px 7px;border-radius:10px;margin-right:8px}
+.tag.booking{background:#eaf3de;color:#27500a}
+.tag.blackout{background:#f5e6d3;color:#8a5a1f}
+.range-item .dates{color:#555}
+.remove-btn{background:none;border:none;color:#c33;cursor:pointer;font-size:12px;padding:4px 8px}
+.remove-btn:hover{text-decoration:underline}
+.empty-msg{font-size:13px;color:#888;padding:8px 0}
+.status{margin-top:10px;font-size:13px;padding:10px 12px;border-radius:8px;display:none}
+.status.ok{background:#eaf3de;color:#27500a;display:block}
+.status.err{background:#fcebeb;color:#791f1f;display:block}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Availability Admin</h1>
+    <p>A1A Trailer Rentals &mdash; manage blackout dates &amp; view bookings</p>
+  </div>
+
+  <div id="gate" class="gate">
+    <div class="field">
+      <label>Admin Password</label>
+      <input type="password" id="pw-input" placeholder="Enter password">
+    </div>
+    <button class="btn" onclick="unlock()">Unlock</button>
+    <div id="gate-status" class="status"></div>
+  </div>
+
+  <div id="panel" class="card" style="display:none">
+
+    <div class="section-label">Add Blackout Dates</div>
+    <div class="field">
+      <label>Trailer</label>
+      <select id="bo-trailer">
+        <option value="7x16">7x16 Car Hauler</option>
+        <option value="7x20">7x20 Car Hauler</option>
+        <option value="dump">14' Dump Trailer</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Start Date</label><input type="date" id="bo-start"></div>
+      <div class="field"><label>End Date</label><input type="date" id="bo-end"></div>
+    </div>
+    <div class="field">
+      <label>Reason (optional, only you see this)</label>
+      <input type="text" id="bo-label" placeholder="e.g. Maintenance, personal use">
+    </div>
+    <button class="btn" onclick="addBlackout()">Block These Dates</button>
+    <div id="add-status" class="status"></div>
+
+    <div class="section-label">7x16 Car Hauler</div>
+    <div id="list-7x16"></div>
+    <div class="section-label">7x20 Car Hauler</div>
+    <div id="list-7x20"></div>
+    <div class="section-label">14' Dump Trailer</div>
+    <div id="list-dump"></div>
+
+  </div>
+</div>
+
+<script>
+let adminPassword='';
+
+function unlock(){
+  const pw=document.getElementById('pw-input').value;
+  if(!pw){return;}
+  adminPassword=pw;
+  refreshAll();
+}
+
+async function refreshAll(){
+  const status=document.getElementById('gate-status');
+  try{
+    const res=await fetch('/.netlify/functions/availability');
+    if(!res.ok){throw new Error('Could not load availability');}
+    const data=await res.json();
+    document.getElementById('gate').style.display='none';
+    document.getElementById('panel').style.display='block';
+    renderList('7x16',data.all['7x16']||[]);
+    renderList('7x20',data.all['7x20']||[]);
+    renderList('dump',data.all['dump']||[]);
+  }catch(err){
+    status.className='status err';status.textContent='Could not load availability: '+err.message;
+  }
+}
+
+function fmt(iso){
+  if(!iso)return'';
+  const [y,m,d]=iso.split('-');
+  return `${m}/${d}/${y}`;
+}
+
+function renderList(trailerKey,ranges){
+  const el=document.getElementById('list-'+trailerKey);
+  if(!ranges.length){el.innerHTML='<div class="empty-msg">No bookings or blocked dates.</div>';return;}
+  const sorted=[...ranges].sort((a,b)=>a.start.localeCompare(b.start));
+  el.innerHTML=sorted.map(r=>`
+    <div class="range-item">
+      <div>
+        <span class="tag ${r.type}">${r.type==='booking'?'Booked':'Blocked'}</span>
+        <span class="dates">${fmt(r.start)} &ndash; ${fmt(r.end)}</span>
+        ${r.label?`<span style="color:#999"> &middot; ${r.label}</span>`:''}
+      </div>
+      ${r.type==='blackout'?`<button class="remove-btn" onclick="removeRange('${trailerKey}','${r.id}')">Remove</button>`:''}
+    </div>`).join('');
+}
+
+async function addBlackout(){
+  const status=document.getElementById('add-status');
+  const trailer=document.getElementById('bo-trailer').value;
+  const start=document.getElementById('bo-start').value;
+  const end=document.getElementById('bo-end').value;
+  const label=document.getElementById('bo-label').value.trim();
+  if(!start||!end){
+    status.className='status err';status.textContent='Pick both a start and end date.';return;
+  }
+  try{
+    const res=await fetch('/.netlify/functions/availability',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({adminPassword,trailer,start,end,label})
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){throw new Error(data.error||'Could not add blackout dates');}
+    status.className='status ok';status.textContent='Dates blocked.';
+    document.getElementById('bo-start').value='';
+    document.getElementById('bo-end').value='';
+    document.getElementById('bo-label').value='';
+    refreshAll();
+  }catch(err){
+    status.className='status err';status.textContent=err.message;
+  }
+}
+
+async function removeRange(trailer,rangeId){
+  if(!confirm('Remove this blocked date range?'))return;
+  try{
+    const res=await fetch('/.netlify/functions/availability',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({adminPassword,trailer,rangeId})
+    });
+    if(!res.ok){const data=await res.json().catch(()=>({}));throw new Error(data.error||'Could not remove');}
+    refreshAll();
+  }catch(err){
+    alert(err.message);
+  }
+}
+</script>
+</body>
+</html>
