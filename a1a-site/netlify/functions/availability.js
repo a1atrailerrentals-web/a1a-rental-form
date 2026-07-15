@@ -21,7 +21,15 @@ const { getStore } = require('@netlify/blobs');
 const TRAILER_KEYS = ['7x16', '7x20', 'dump'];
 
 function store() {
-  return getStore('availability');
+  // Netlify's automatic Blobs context injection isn't reaching this
+  // function in this project (a known platform quirk with some deploy
+  // configurations). Falling back to explicit credentials, set as
+  // environment variables in Netlify, makes this work regardless.
+  return getStore({
+    name: 'availability',
+    siteID: process.env.NETLIFY_SITE_ID_MANUAL,
+    token: process.env.NETLIFY_API_TOKEN,
+  });
 }
 
 async function getRanges(trailerKey) {
