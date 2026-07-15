@@ -7,6 +7,7 @@
 
 const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const { addBookingRange } = require('./availability');
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const BUSINESS_EMAIL = process.env.BUSINESS_EMAIL || 'a1atrailerrentals@gmail.com';
@@ -45,6 +46,18 @@ exports.handler = async (event) => {
     const session = stripeEvent.data.object;
     const meta = session.metadata || {};
     const amountTotal = ((session.amount_total || 0) / 100).toFixed(2);
+
+    // Block these dates out for this trailer now that payment has cleared.
+    // This is the same authoritative signal used for the notification
+    // email below, so a booking only ever blocks the calendar once it's
+    // actually paid for — not just started.
+    try {
+      await addBookingRange(meta.trailer_key, meta.start_date, meta.end_date, {
+        label: meta.renter_name ? `Booked — ${meta.renter_name}` : 'Booked',
+      });
+    } catch (err) {
+      console.error('Failed to record booking in availability store:', err.message);
+    }
 
     const html = `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
