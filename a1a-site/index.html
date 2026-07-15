@@ -45,6 +45,9 @@ body{background:#f4f4f0;font-family:'DM Sans',sans-serif}
 .cal-day.selected{background:#e03030;color:#fff;font-weight:500}
 .cal-day.in-range{background:rgba(224,48,48,0.1)}
 .cal-day.disabled{color:#bbb;cursor:not-allowed}
+.cal-day.booked{color:#c99;cursor:not-allowed;background:repeating-linear-gradient(135deg,#f5f5f5,#f5f5f5 3px,#ebebeb 3px,#ebebeb 6px);text-decoration:line-through}
+.cal-legend{display:flex;gap:14px;padding:6px 8px 2px;font-size:10.5px;color:#888}
+.cal-legend-swatch{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
 .cal-day.empty{cursor:default}
 .cal-day.today{font-weight:500;text-decoration:underline;text-decoration-color:#888}
 .date-label{font-size:11px;color:#888;margin-bottom:4px}
@@ -166,6 +169,7 @@ body{background:#f4f4f0;font-family:'DM Sans',sans-serif}
                 <div class="cal-day-label">Sa</div>
               </div>
               <div class="cal-days" id="cal-days"></div>
+              <div class="cal-legend"><span><span class="cal-legend-swatch" style="background:repeating-linear-gradient(135deg,#f5f5f5,#f5f5f5 3px,#ebebeb 3px,#ebebeb 6px)"></span>Unavailable</span></div>
             </div>
           </div>
           <div>
@@ -280,7 +284,48 @@ const today=new Date();today.setHours(0,0,0,0);
 let calYear=today.getFullYear(),calMonth=today.getMonth();
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-function selectTrailer(key,el){selectedTrailerKey=key;document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');document.getElementById('cal-section').style.display='block';document.getElementById('rates-toggle').style.display='inline-block';startDate=null;endDate=null;selectedRate=null;updateDateDisplay();renderCal();updatePricing();buildRatesTable();checkReady();}
+// Unavailable date ranges (already-booked + manual blackout) for whichever
+// trailer is currently selected. Fetched fresh from /.netlify/functions/availability
+// every time a different trailer is picked, so it's never stale for long.
+let unavailableRanges=[];
+let availabilityLoading=false;
+
+async function loadAvailability(trailerKey){
+  availabilityLoading=true;
+  unavailableRanges=[];
+  renderCal();
+  try{
+    const res=await fetch(`/.netlify/functions/availability?trailer=${encodeURIComponent(trailerKey)}`);
+    if(res.ok){
+      const data=await res.json();
+      unavailableRanges=(data.ranges||[]).map(r=>({start:r.start,end:r.end}));
+    }
+  }catch(err){
+    // If this fails, fail safe: leave the calendar open rather than blocking
+    // a renter over a network hiccup, but log it so it's visible in devtools.
+    console.error('Could not load availability:',err);
+  }
+  availabilityLoading=false;
+  renderCal();
+}
+
+// Inclusive check: is this calendar date within any booked/blackout range?
+function isDateUnavailable(dt){
+  const iso=isoDate(dt);
+  return unavailableRanges.some(r=>iso>=r.start&&iso<=r.end);
+}
+
+// Does the range [a,b] (inclusive) touch any unavailable date at all?
+function rangeHasUnavailable(a,b){
+  const d=new Date(a);
+  while(d<=b){
+    if(isDateUnavailable(d))return true;
+    d.setDate(d.getDate()+1);
+  }
+  return false;
+}
+
+function selectTrailer(key,el){selectedTrailerKey=key;document.querySelectorAll('.t-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');document.getElementById('cal-section').style.display='block';document.getElementById('rates-toggle').style.display='inline-block';startDate=null;endDate=null;selectedRate=null;updateDateDisplay();loadAvailability(key);updatePricing();buildRatesTable();checkReady();}
 function prevMonth(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCal();}
 function nextMonth(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCal();}
 
@@ -293,13 +338,33 @@ function renderCal(){
   for(let d=1;d<=daysIn;d++){
     const btn=document.createElement('button');btn.className='cal-day';btn.textContent=d;
     const dt=new Date(calYear,calMonth,d);
+    const unavailable=selectedTrailerKey&&isDateUnavailable(dt);
     if(dt<today){btn.classList.add('disabled');btn.disabled=true;}
+    else if(unavailable){btn.classList.add('booked');btn.disabled=true;btn.title='Already booked / unavailable';}
     else{if(dt.toDateString()===today.toDateString())btn.classList.add('today');if(startDate&&dt.toDateString()===startDate.toDateString())btn.classList.add('selected');if(endDate&&!selectedRate&&dt.toDateString()===endDate.toDateString())btn.classList.add('selected');if(startDate&&endDate&&!selectedRate&&dt>startDate&&dt<endDate)btn.classList.add('in-range');btn.onclick=()=>pickDate(dt);}
     grid.appendChild(btn);
   }
 }
 
-function pickDate(dt){selectedRate=null;if(!startDate||(startDate&&endDate)||dt<startDate){startDate=dt;endDate=null;}else{endDate=dt;}updateDateDisplay();renderCal();updatePricing();checkReady();}
+function pickDate(dt){
+  selectedRate=null;
+  if(!startDate||(startDate&&endDate)||dt<startDate){
+    startDate=dt;endDate=null;
+  }else{
+    // Picking a return date — reject if any day between start and this
+    // date (inclusive) is already booked or blacked out, so a renter
+    // can't select a range that straddles an unavailable stretch.
+    if(rangeHasUnavailable(startDate,dt)){
+      const status=document.getElementById('ra-status');
+      status.className='ra-status error';status.style.display='block';
+      status.innerHTML='<strong>That range isn\'t available:</strong> one or more days in between are already booked. Please pick a different return date.';
+      setTimeout(()=>{status.style.display='none';},4000);
+      return;
+    }
+    endDate=dt;
+  }
+  updateDateDisplay();renderCal();updatePricing();checkReady();
+}
 
 // Selecting one of the short-term (sub-24-hour) rates. These can't be
 // expressed as a calendar day range, so picking one sets the return date
